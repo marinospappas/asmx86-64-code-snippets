@@ -14,16 +14,31 @@
 # convert string to integer
 atoi:
 	pushq	%rbx
+	pushq	%r8
 
-	xorq	%rax, %rax		# initialise rax to 0
+	xorq	%rax, %rax		# initialise rax to 0 - this will be our integer
+
+	xorq	%r8, %r8		# clear r8
+	movzb	(%rdi), %r8		# get the first byte
+	cmp	$'-', %r8		# check for negative
+	je	atoi_l1
+
+	cmp	$'+', %r8		# also check for '+'
+	je	atoi_l1
+
+	jmp	atoi_next
+
+atoi_l1:
+	inc	%rdi			# point t the next byte
+
 atoi_next:	
-	movzb	(%rdi), %rbx		# get next byte
+	movzb	(%rdi), %rbx		# get byte
 	cmp	$0, %rbx		# check for end of string
 	je	atoi_ret
 
 	subq	$'0', %rbx		# ascii to bin value
 	cmp	$0, %rbx
-	jl	atoi_ret		# return if char is < '0'
+	jl	atoi_end		# return if char is < '0'
 	cmp	$9, %rbx
 	jg	atoi_ret		# return if char is > '9'
 
@@ -32,7 +47,14 @@ atoi_next:
 	inc	%rdi			# increment pointer to next digit
 	jmp	atoi_next
 
+atoi_end:
+	cmp	$'-', %r8		# check whether we got a '-' as first char
+	jne	atoi_ret
+
+	neg	%rax			# adn negate rax in that case
+
 atoi_ret:
+	popq	%r8
 	popq	%rbx
 	ret
 
