@@ -19,7 +19,7 @@ atoi:
 	xorq	%rax, %rax		# initialise rax to 0 - this will be our integer
 
 	xorq	%r8, %r8		# clear r8
-	movzb	(%rdi), %r8		# get the first byte
+	movzb	(%rdi), %r8		# get the first char
 	cmp	$'-', %r8		# check for negative
 	je	atoi_l1
 
@@ -29,10 +29,10 @@ atoi:
 	jmp	atoi_next
 
 atoi_l1:
-	inc	%rdi			# point t the next byte
+	inc	%rdi			# point to the next char
 
 atoi_next:	
-	movzb	(%rdi), %rbx		# get byte
+	movzb	(%rdi), %rbx		# get char
 	cmp	$0, %rbx		# check for end of string
 	je	atoi_ret
 
@@ -44,7 +44,7 @@ atoi_next:
 
 	imulq	$10, %rax
 	addq	%rbx, %rax		# x10 and add digit
-	inc	%rdi			# increment pointer to next digit
+	inc	%rdi			# increment pointer to next char
 	jmp	atoi_next
 
 atoi_end:
