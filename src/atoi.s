@@ -50,8 +50,7 @@ atoi_next:
 atoi_end:
 	cmp	$'-', %r8		# check whether we got a '-' as first char
 	jne	atoi_ret
-
-	neg	%rax			# adn negate rax in that case
+	neg	%rax			# and negate rax in that case
 
 atoi_ret:
 	popq	%r8
