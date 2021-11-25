@@ -3,55 +3,98 @@
 
 .data
 .align 8
-	fmt_wi:	.string "value: %d\n"
-	fmt_ri:	.string "%d\n"
-	fmt_prompt:	.string "Input value followed by <Enter> and <Ctrl>D: "
-	value:	.quad  0
+	prompt:	.string "Input a string followed by <Enter> (<Ctrl-D> to exit):\n"
+
+.bss
+.align 8
+	buffer:	.skip 512
 
 .text
 	.global main
 
-# read integer function
-read_i:
+######################
+# read string function
+read_s:
 	pushq	%rbx
-	pushq	%rdi			# save address of variable
+	pushq	%rdi
+	pushq	%rsi
 
-	lea	fmt_prompt(%rip), %rdi	# print prompt
-	xor	%eax, %eax
-	call	printf
+	xorq	%rax, %rax		# system call 0 = read
+	movq	%rax, %rdi		# file descriptor 0
+	leaq	buffer(%rip), %rsi	# data buffer
+	movq	$256, %rdx		# bytes to read
+	syscall				# call the kernel
 
-	popq	%rsi	          	# retrieve address of varaible rsi
-	lea	fmt_ri(%rip), %rdi	# fmt string in rdi
-	xor	%eax, %eax
-	call	scanf
+        leaq    buffer(%rip), %rdx
+        movb    $0, (%rax,%rdx)		# set string terminator
+
+	popq	%rsi
+	popq	%rdi
 	popq	%rbx
 	ret
 
-# write integer function
-write_i:
+#######################
+# write string function
+write_s:
 	pushq	%rbx
-	movq	%rdi, %rsi		# value to be printed was in rdi - must be saved in rsi
-	lea	fmt_wi(%rip), %rdi	# fmt string in rdi
-	xor	%eax, %eax
-	call	printf
+	pushq	%rdi
+	pushq	%rsi
+
+	leaq	buffer(%rip), %rdi	# data buffer
+	call	strlen
+	movq	%rax, %rdx		# bytes to write
+
+	movq	$1, %rax		# system call 1 = write
+	movq	%rax, %rdi		# file descriptor 1
+	leaq	buffer(%rip), %rsi	# data buffer
+	syscall				# call the kernel
+
+	popq	%rsi
+	popq	%rdi
 	popq	%rbx
-	ret	
+	ret
+
+############################
+# calculate length of string
+# params
+# 	rdi: address of string
+# returns
+# 	rax: string length
+#
+strlen:
+	xorq	%rax, %rax		# clear rax (will count the strlen here)
+strlen_next:
+	cmp	$0, (%rax, %rdi)	# check str char in rdx[rax]
+	je	strlen_ret
+
+	inc	%rax
+	jmp	strlen_next
+
+strlen_ret:
+	ret
+	
 
 # main program
 main:
-	lea	value(%rip), %rdi	# adress of the variable to be read
 	pushq	%rbx
-	call	read_i
+	pushq	%rdi
+
+	# print prompt
+	lea	prompt(%rip), %rdi
+	xorq	%rax, %rax
+	call	printf
+
+read_next:				
+	call	read_s			# read a string 
+
+	cmp	$0, %rax
+	je	main_exit		# exit loop at end of input
+
+	call	write_s
+	jmp	read_next
+
+main_exit:
+	popq	%rdi
 	popq	%rbx
+	ret				# bye bye
 
-	movq	value(%rip), %rax
-	movq	$5, %rbx
-	imulq	%rbx
-	movq	%rax, value(%rip)
-
-	movq	value, %rdi		# value to be printed
-	pushq	%rbx
-	call	write_i
-	popq	%rbx
-
-	ret
