@@ -1,33 +1,66 @@
-# input output module
-# reads and writes integers using standard C library scanf and printf
+###################################################################################
+# input output utilities
+# implements string read and write using llinux kernel calls
+# to be used with tinsel output
+# also integer read and write by converting string to int using atoi and vice-versa
+# Author: M. Pappas
+# Version 1.0 28.11.2021
+###################################################################################
+
+
+.set	BUFFER_SIZE, 512
+.set	BUFFER_SIZE, 512
 
 .data
-.align 8
-	prompt:	.string "Input a string followed by <Enter> (<Ctrl-D> to exit):\n"
+	.align 8	
 
 .bss
-.align 8
-	buffer:	.skip 512
+	.align 8
+	buffer: .space BUFFER_SIZE
 
 .text
-	.global main
+
+.global	read_s_
+.global	write_s_
+.global	read_i_
+.global	write_i_
 
 ######################
 # read string function
-read_s:
+# params:
+#	rdi:	string address
+#	rsi:	available string length
+# returns:
+#	rax:	number of bytes read
+#
+read_s_:
 	pushq	%rbx
 	pushq	%rdi
 	pushq	%rsi
+	pushq	%rbx
 
+	# setup read call parametrs from this function's parameters
+	movq	%rsi, %rdx		# string size was in rsi - must be in rdx
+	movq	%rdi, %rsi		# string address was in rdi - must be in rsi
+	pushq	%rsi			# save string address
 	xorq	%rax, %rax		# system call 0 = read
 	movq	%rax, %rdi		# file descriptor 0
-	leaq	buffer(%rip), %rsi	# data buffer
-	movq	$256, %rdx		# bytes to read
 	syscall				# call the kernel
+					# returns number of bytes read in rax
+	popq	%rsi			# retrieve string address
+        movb    $0, (%rsi,%rax)		# set string terminator
 
-        leaq    buffer(%rip), %rdx
-        movb    $0, (%rax,%rdx)		# set string terminator
+	cmp	$0, %rax		# check in case 0 characters read (ctrl-d)
+	je	read_s_ret		# in that case return
 
+	decq	%rax			# pint to the last char
+	cmpb	$'\n', (%rsi,%rax)	# check for newline
+	jne	read_s_ret
+
+	movb    $0, (%rsi,%rax)		# remove the newline
+
+read_s_ret:
+	popq	%rbx
 	popq	%rsi
 	popq	%rdi
 	popq	%rbx
@@ -35,18 +68,23 @@ read_s:
 
 #######################
 # write string function
-write_s:
+# params:
+#	rdi:	string address
+# returns:
+#	rax:	number of bytes written
+#
+.extern	strlen_
+write_s_:
 	pushq	%rbx
 	pushq	%rdi
 	pushq	%rsi
 
-	leaq	buffer(%rip), %rdi	# data buffer
-	call	strlen
+	call	strlen_			# rdi already contains the stirng address
 	movq	%rax, %rdx		# bytes to write
 
+	movq	%rdi, %rsi		# string addess must be in rsi
 	movq	$1, %rax		# system call 1 = write
 	movq	%rax, %rdi		# file descriptor 1
-	leaq	buffer(%rip), %rsi	# data buffer
 	syscall				# call the kernel
 
 	popq	%rsi
@@ -54,47 +92,53 @@ write_s:
 	popq	%rbx
 	ret
 
-############################
-# calculate length of string
-# params
-# 	rdi: address of string
-# returns
-# 	rax: string length
+#######################
+# read integer function
+# params:
+#	no parameters
+# returns:
+#	rax: the integer
 #
-strlen:
-	xorq	%rax, %rax		# clear rax (will count the strlen here)
-strlen_next:
-	cmp	$0, (%rax, %rdi)	# check str char in rdx[rax]
-	je	strlen_ret
-
-	inc	%rax
-	jmp	strlen_next
-
-strlen_ret:
-	ret
-	
-
-# main program
-main:
+.extern	atoi_
+read_i_:
 	pushq	%rbx
 	pushq	%rdi
+	pushq	%rsi
 
-	# print prompt
-	lea	prompt(%rip), %rdi
-	xorq	%rax, %rax
-	call	printf
+	leaq	buffer(%rip), %rdi	# read string from input
+	movq	$(BUFFER_SIZE-1), %rsi
+	call 	read_s_
 
-read_next:				
-	call	read_s			# read a string 
+	leaq	buffer(%rip), %rdi	# convert to integer
+	call	atoi_			# the integer retruned from atoi_ is already in %rax
 
-	cmp	$0, %rax
-	je	main_exit		# exit loop at end of input
-
-	call	write_s
-	jmp	read_next
-
-main_exit:
+	popq	%rsi
 	popq	%rdi
 	popq	%rbx
-	ret				# bye bye
+	ret
+
+########################
+# write integer function
+# params:
+#	rdi: the integer
+# returns:
+#	no return value
+#
+.extern	itoa_
+write_i_:
+	pushq	%rbx
+	pushq	%rdi
+	pushq	%rsi
+
+	# interger already in rdi (first parameter)
+	leaq	buffer(%rip), %rsi	# convert int to string
+	call	itoa_
+
+	leaq	buffer(%rip), %rdi	# print the string
+	call	write_s_
+	
+	popq	%rsi
+	popq	%rdi
+	popq	%rbx
+	ret
 
