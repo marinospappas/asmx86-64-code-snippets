@@ -9,7 +9,6 @@
 
 
 .set	BUFFER_SIZE, 512
-.set	BUFFER_SIZE, 512
 
 .data
 	.align 8	
