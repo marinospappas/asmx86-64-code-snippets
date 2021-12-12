@@ -24,7 +24,7 @@
 strlen_:
         xorq    %rax, %rax              # clear rax (will count the strlen here)
 strlen_next:
-        cmpb    $0, (%rax, %rdi)        # check str char in rdx[rax]
+        cmpb    $0, (%rdi, %rax)        # check str char in rdi[rax]
         je      strlen_ret
 
         inc     %rax
